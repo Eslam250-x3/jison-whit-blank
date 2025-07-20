@@ -590,12 +590,16 @@
                 questionText = questionText.replace(/_{2,}/g, fillBlankPlaceholder);
 
                 if (question.type === 'multiple_choice') {
-                    let trimmedText = questionText.trim();
-                    if (!trimmedText.endsWith('?') && !trimmedText.endsWith('؟')) {
-                        if (trimmedText.endsWith('.')) {
-                            questionText = trimmedText.slice(0, -1).trim() + mcqEndPlaceholder + '.';
+                    let textToCheck = question.question.trim();
+                    if (textToCheck.endsWith('.')) {
+                        textToCheck = textToCheck.slice(0, -1).trim();
+                    }
+                    if (!textToCheck.endsWith('?') && !textToCheck.endsWith('؟')) {
+                        let originalTrimmedText = question.question.trim();
+                        if (originalTrimmedText.endsWith('.')) {
+                            questionText = originalTrimmedText.slice(0, -1).trim() + mcqEndPlaceholder + '.';
                         } else {
-                            questionText = trimmedText + mcqEndPlaceholder;
+                            questionText = originalTrimmedText + mcqEndPlaceholder;
                         }
                     }
                 }
@@ -920,6 +924,10 @@
                 let question = lines[0].replace(/^\d+\s*[.-]\s*/, '').trim();
                 const choices = [];
                 let correctAnswerIndex = null;
+
+                // NEW: Check if the question is interrogative
+                const isInterrogative = question.trim().endsWith('?') || question.trim().endsWith('؟');
+
                 for (let i = 1; i < lines.length; i++) {
                     let choiceText = lines[i];
                     
@@ -936,9 +944,13 @@
 
                     let cleanedText = choiceText.trim();
                     
+                    // Clean any existing trailing punctuation
                     cleanedText = cleanedText.replace(/[.؟?!,;:]\s*$/, '');
 
-                    cleanedText += '.';
+                    // Add a period only if the question is NOT interrogative
+                    if (!isInterrogative) {
+                        cleanedText += '.';
+                    }
 
                     choices.push(cleanedText);
                 }
