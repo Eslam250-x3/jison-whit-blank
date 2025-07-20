@@ -326,10 +326,14 @@
 ب) الإسكندرية
 
 2. الشمس تشرق من الغرب. (خطأ)
+
+3. يقول (ستانلي هول):- ... يمثل المقولة أحد اهتمامات فرع من فروع علم النفس النظرية وهو _________
+أ) علم النفس الارتقائي*
+...
 "></textarea>
                 </div>
                 <div class="api-key-section">
-                     <input type="password" id="apiKey" placeholder="🔑 أدخل مفتاح Gemini API هنا">
+                         <input type="password" id="apiKey" placeholder="🔑 أدخل مفتاح Gemini API هنا">
                 </div>
                 <div class="controls">
                     <button class="btn btn-primary" onclick="app.smartAnalyze()">🤖 تحليل ذكي</button>
@@ -438,7 +442,7 @@
                 </select>
             </div>
             <button class="btn btn-primary" style="width:100%;" onclick="app.saveCustomization()">حفظ</button>
-      </div>
+        </div>
     </div>
 
     <!-- NEW: Handsontable CSV Modal -->
@@ -447,11 +451,6 @@
             <button onclick="app.closeCSVModal()" style="position:absolute; top:12px; left:12px; background:none; border:none; font-size:1.5em; cursor:pointer;">&times;</button>
             <h2 style="text-align:center; margin-bottom:18px; color:#4f46e5;">CSV Editor</h2>
             <div class="csv-warning" id="csvWarning" style="display:none;"></div>
-            <!-- Nagwa ID Fetcher UI -->
-            <div style="display:flex; gap:10px; align-items:center; margin-bottom:18px;">
-                <input type="number" id="nagwaCountInput" min="1" placeholder="عدد الأكواد من Nagwa" style="padding:8px; border-radius:8px; border:1px solid #e5e7eb; width:180px;" />
-                <button class="btn btn-warning" onclick="app.fetchNagwaIdsAndFillCSV()">جلب أكواد Nagwa</button>
-            </div>
             <div id="hotTable" class="hot-container"></div>
             <div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
               <button class="btn btn-success" onclick="app.saveCSVData()">💾 حفظ</button>
@@ -562,22 +561,21 @@
             }
 
             // =================================================================
-            // ===== START: الدالة التي تم تصحيحها بالكامل =====
+            // ===== START: الدالة التي تم تحديثها لمعالجة الخطوط السفلية =====
             // =================================================================
             transformToAdvancedFormat(question, index, forceN = null) {
                 const typeMap = {
                     multiple_choice: 'mcq',
                     true_false: 'mcq',
-                    essay: 'frq_ai', // changed from 'essay' to 'frq_ai'
+                    essay: 'essay',
                     fill_blank: 'fill_blank',
-                    short_answer: 'frq_ai', // changed from 'short_answer' to 'frq_ai'
+                    short_answer: 'short_answer',
                     matching: 'matching',
-                    unknown: 'frq_ai' // fallback for unknown types
+                    unknown: 'essay' // Fallback for unknown types
                 };
 
                 const partN = (forceN !== null) ? forceN : (question.id || index + 1);
 
-                // --- UPDATED: Get ID from CSV and ensure it's a number ---
                 const csvRow = this.csvData && this.csvData[index];
                 const questionIdFromCsv = csvRow && csvRow['Question Id'] ? String(csvRow['Question Id']).trim() : null;
                 
@@ -588,11 +586,26 @@
                 } else {
                     finalId = Date.now() + index;
                 }
-                // --- END UPDATE ---
+
+                // --- START: NEW LOGIC FOR BLANK LINE (as requested) ---
+                let questionText = question.question;
+                // Use a unique placeholder to avoid being escaped by the HTML escaper.
+                const placeholder = "###BLANK_LINE_PLACEHOLDER###";
+                // Replace two or more underscores with the placeholder.
+                questionText = questionText.replace(/_{2,}/g, placeholder);
+
+                // Now, escape the entire string. The placeholder itself is safe and won't be modified.
+                let escapedQuestionText = this.escapeHtml(questionText);
+
+                // Finally, replace the placeholder with the desired raw HTML span.
+                // This span will NOT be escaped, which is what we want.
+                const blankLineSpanHtml = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
+                const finalStemHtml = escapedQuestionText.replace(new RegExp(placeholder, 'g'), blankLineSpanHtml);
+                // --- END: NEW LOGIC FOR BLANK LINE ---
 
                 const part = {
                     n: partN,
-                    stem: `<p>${this.escapeHtml(question.question)}</p>`,
+                    stem: `<p>${finalStemHtml}</p>`, // Use the processed HTML
                     type: typeMap[question.type] || 'essay',
                     answer: null,
                     choices: [],
@@ -622,13 +635,13 @@
                     }
                     const choices = (this.language === 'ar') ? ['صح', 'خطأ'] : ['True', 'False'];
                     part.choices = choices.map((choice, i) => ({
-                         type: (i === correctAnswerIndex) ? 'key' : 'distractor',
-                         unit: null,
-                         index: i,
-                         values: [],
-                         last_order: false,
-                         fixed_order: i + 1,
-                         html_content: `<span>${this.escapeHtml(choice)}</span>`
+                          type: (i === correctAnswerIndex) ? 'key' : 'distractor',
+                          unit: null,
+                          index: i,
+                          values: [],
+                          last_order: false,
+                          fixed_order: i + 1,
+                          html_content: `<span>${this.escapeHtml(choice)}</span>`
                     }));
                 }
 
@@ -640,7 +653,6 @@
                         automark: true,
                         category: this.customization.category,
                         country: this.customization.country,
-                        // UPDATED: Use the new lang setting
                         language: this.customization.lang,
                         dialect: [this.customization.dialect],
                         mapped_id: finalId,
@@ -657,7 +669,7 @@
                 return advancedQuestion;
             }
             // ===============================================================
-            // ===== END: الدالة التي تم تصحيحها بالكامل =====
+            // ===== END: الدالة المحدثة =====
             // ===============================================================
             
             convertToJSON() {
@@ -1053,7 +1065,7 @@
                                     ${this.escapeHtml(choice)}
                                 </div>`).join('');
                         } else if (q.answer !== null && q.answer !== undefined && q.answer !== '') {
-                             content += `<div class="choice-item correct">الإجابة: ${this.escapeHtml(q.answer)}</div>`;
+                                 content += `<div class="choice-item correct">الإجابة: ${this.escapeHtml(q.answer)}</div>`;
                         }
                         questionDiv.innerHTML = content;
                     }
@@ -1063,16 +1075,12 @@
             
             escapeHtml(text) {
                 if (typeof text !== 'string') return text;
-                // أولاً: استبدال الشرطات الطويلة
-                const blankLineSpan = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
-                text = text.replace(/([ـ_-]{3,})/g, blankLineSpan);
-                // ثانياً: استبدال الرموز الخاصة
                 return text
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
-                    .replace(/&lt;u&gt;/g, "<u>")
-                    .replace(/&lt;\/u&gt;/g, "</u>");
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
             }
 
             syntaxHighlight(json) {
@@ -1369,42 +1377,6 @@
                     }).join(',')
                 );
                 return [header.join(',')].concat(rows).join('\n');
-            }
-
-            async fetchNagwaIdsAndFillCSV() {
-                const input = document.getElementById('nagwaCountInput');
-                let count = parseInt(input.value, 10);
-                if (!count || count <= 0) {
-                    this.showMessage('يرجى إدخال عدد صحيح أكبر من صفر', 'warning');
-                    return;
-                }
-                // أظهر تحميل مؤقت
-                input.disabled = true;
-                const btn = input.nextElementSibling;
-                btn.disabled = true;
-                btn.innerHTML = '<div class="spinner"></div> جاري الجلب...';
-                try {
-                    const url = `https://12digit.nagwa.com/get.bulk.codes/${count}/cps/cps.system/`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error('فشل الاتصال بموقع Nagwa');
-                    const ids = await response.json();
-                    if (!Array.isArray(ids) || ids.length !== this.csvData.length) {
-                        this.showMessage(`عدد الأكواد المسترجعة (${ids.length}) لا يساوي عدد الأسئلة (${this.csvData.length})`, 'error');
-                    } else {
-                        // ضع الأكواد في عمود Question Id
-                        for (let i = 0; i < ids.length; i++) {
-                            this.csvData[i]['Question Id'] = ids[i];
-                        }
-                        if (this.hotInstance) this.hotInstance.loadData(this.csvData);
-                        this.showMessage('تم جلب أكواد Nagwa وتعبئتها بنجاح', 'success');
-                    }
-                } catch (e) {
-                    this.showMessage('حدث خطأ أثناء جلب الأكواد: ' + e.message, 'error');
-                } finally {
-                    input.disabled = false;
-                    btn.disabled = false;
-                    btn.innerHTML = 'جلب أكواد Nagwa';
-                }
             }
         }
 
