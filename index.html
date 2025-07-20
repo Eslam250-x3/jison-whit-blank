@@ -324,12 +324,10 @@
 1. ما هي عاصمة مصر؟
 أ) القاهرة*
 ب) الإسكندرية
-
+**********
 2. الشمس تشرق من الغرب. (خطأ)
-
-3. يقول (ستانلي هول):- ... يمثل المقولة أحد اهتمامات فرع من فروع علم النفس النظرية وهو _________
-أ) علم النفس الارتقائي*
-...
+**********
+3. أكمل: عاصمة السعودية هي _________
 "></textarea>
                 </div>
                 <div class="api-key-section">
@@ -560,9 +558,7 @@
                 }
             }
 
-            // =================================================================
-            // ===== START: الدالة التي تم تحديثها لمعالجة الخطوط السفلية =====
-            // =================================================================
+            // ===== UPDATED FUNCTION =====
             transformToAdvancedFormat(question, index, forceN = null) {
                 const typeMap = {
                     multiple_choice: 'mcq',
@@ -571,7 +567,7 @@
                     fill_blank: 'fill_blank',
                     short_answer: 'short_answer',
                     matching: 'matching',
-                    unknown: 'essay' // Fallback for unknown types
+                    unknown: 'essay'
                 };
 
                 const partN = (forceN !== null) ? forceN : (question.id || index + 1);
@@ -587,25 +583,38 @@
                     finalId = Date.now() + index;
                 }
 
-                // --- START: NEW LOGIC FOR BLANK LINE (as requested) ---
+                // --- START: NEW COMBINED LOGIC FOR SPANS ---
                 let questionText = question.question;
-                // Use a unique placeholder to avoid being escaped by the HTML escaper.
-                const placeholder = "###BLANK_LINE_PLACEHOLDER###";
-                // Replace two or more underscores with the placeholder.
-                questionText = questionText.replace(/_{2,}/g, placeholder);
+                const blankLineSpanHtml = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
+                const fillBlankPlaceholder = "###FILL_BLANK_SPAN###";
+                const mcqEndPlaceholder = "###MCQ_END_SPAN###";
 
-                // Now, escape the entire string. The placeholder itself is safe and won't be modified.
+                // Step 1: Handle fill-in-the-blank underscores
+                questionText = questionText.replace(/_{2,}/g, fillBlankPlaceholder);
+
+                // Step 2: Handle adding span at the end of MCQs
+                if (question.type === 'multiple_choice') {
+                    let trimmedText = questionText.trim();
+                    if (trimmedText.endsWith('.')) {
+                        // Insert placeholder before the final period
+                        questionText = trimmedText.slice(0, -1).trim() + mcqEndPlaceholder + '.';
+                    } else {
+                        // Append placeholder to the end
+                        questionText = trimmedText + mcqEndPlaceholder;
+                    }
+                }
+
+                // Step 3: Escape the entire text
                 let escapedQuestionText = this.escapeHtml(questionText);
 
-                // Finally, replace the placeholder with the desired raw HTML span.
-                // This span will NOT be escaped, which is what we want.
-                const blankLineSpanHtml = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
-                const finalStemHtml = escapedQuestionText.replace(new RegExp(placeholder, 'g'), blankLineSpanHtml);
-                // --- END: NEW LOGIC FOR BLANK LINE ---
+                // Step 4: Replace placeholders with raw HTML
+                let finalStemHtml = escapedQuestionText.replace(new RegExp(fillBlankPlaceholder, 'g'), blankLineSpanHtml);
+                finalStemHtml = finalStemHtml.replace(new RegExp(mcqEndPlaceholder, 'g'), blankLineSpanHtml);
+                // --- END: NEW COMBINED LOGIC FOR SPANS ---
 
                 const part = {
                     n: partN,
-                    stem: `<p>${finalStemHtml}</p>`, // Use the processed HTML
+                    stem: `<p>${finalStemHtml}</p>`,
                     type: typeMap[question.type] || 'essay',
                     answer: null,
                     choices: [],
@@ -668,9 +677,6 @@
 
                 return advancedQuestion;
             }
-            // ===============================================================
-            // ===== END: الدالة المحدثة =====
-            // ===============================================================
             
             convertToJSON() {
                 if (this.questions.length === 0) {
@@ -753,7 +759,6 @@
                     return;
                 }
                 const zip = new JSZip();
-                // NEW: Create a sub-folder for JSON files
                 const jsonFolder = zip.folder("JSONS");
 
                 this.questions.forEach((q, idx) => {
@@ -763,12 +768,10 @@
                     
                     const singleQuestionObject = this.transformToAdvancedFormat(q, idx, 1);
                     const content = JSON.stringify(singleQuestionObject, null, 2);
-                    // NEW: Add file to the sub-folder
                     jsonFolder.file(filename, content);
                 });
 
                 if (this.csvData && this.csvData.length > 0) {
-                    // Add CSV to the root of the zip
                     zip.file('questions.csv', this.getCSVString());
                 }
                 zip.generateAsync({ type: 'blob' }).then((blob) => {
@@ -818,7 +821,6 @@
                 document.getElementById('categorySelect').value = this.customization.category;
                 document.getElementById('countrySelect').value = this.customization.country;
                 document.getElementById('dialectSelect').value = this.customization.dialect;
-                // NEW: Set lang dropdown value
                 document.getElementById('langSelect').value = this.customization.lang;
             }
             closeCustomizeModal() {
@@ -828,7 +830,6 @@
                 this.customization.category = document.getElementById('categorySelect').value;
                 this.customization.country = document.getElementById('countrySelect').value;
                 this.customization.dialect = document.getElementById('dialectSelect').value;
-                // NEW: Save lang dropdown value
                 this.customization.lang = document.getElementById('langSelect').value;
                 this.closeCustomizeModal();
                 this.showMessage('تم حفظ الإعدادات بنجاح', 'success');
@@ -838,7 +839,6 @@
                 this.customization.category = document.getElementById('categorySelect').value;
                 this.customization.country = document.getElementById('countrySelect').value;
                 this.customization.dialect = document.getElementById('dialectSelect').value;
-                 // NEW: Handle lang dropdown change
                 this.customization.lang = document.getElementById('langSelect').value;
                 this.saveSettings();
                 const jsonOutput = document.getElementById('jsonOutput');
@@ -864,8 +864,8 @@
             }
             
             intelligentQuestionSplitting(text) {
-                return text.split(/(?=\n*\s*\d+\s*[.-])|(?=\n\n)/)
-                           .filter(block => block.trim().length > 5)
+                return text.split(/\n\s*\*+\s*\n|(?=\n*\s*\d+\s*[.-])/)
+                           .filter(block => block && block.trim().length > 5) 
                            .map(b => b.trim());
             }
 
@@ -878,6 +878,7 @@
                     switch (type) {
                         case 'multiple_choice': structure = this.analyzeMultipleChoice(block); confidence = 0.9; break;
                         case 'true_false': structure = this.analyzeTrueFalse(block); confidence = 0.95; break;
+                        case 'fill_blank': structure = { question: block.replace(/^\d+\s*[.-]\s*/, '').trim(), answer: null }; confidence = 0.85; break;
                         default: structure = { question: block.replace(/^\d+\s*[.-]\s*/, '').trim(), answer: null }; confidence = 0.6;
                     }
                 } catch {
@@ -889,21 +890,37 @@
             }
 
             detectQuestionType(text) {
-                if (this.language === 'ar') {
-                    if (this.patterns.trueFalse.test(text)) return 'true_false';
-                    const lines = text.split('\n');
-                    if (lines.length > 1 && /^[أ-ي]\s*[.)-]/.test(lines[1].trim())) return 'multiple_choice';
-                    if (this.patterns.multipleChoice.test(text)) return 'multiple_choice';
-                    if (this.patterns.essay.test(text)) return 'essay';
-                } else {
-                    if (this.patterns.en_trueFalse.test(text)) return 'true_false';
-                    const lines = text.split('\n');
-                    if (lines.length > 1 && /^[A-Da-d]\s*[.)-]/.test(lines[1].trim())) return 'multiple_choice';
-                    if (this.patterns.en_multipleChoice.test(text)) return 'multiple_choice';
-                    if (this.patterns.en_essay.test(text)) return 'essay';
+                const hasChoices = (lang) => {
+                    const lines = text.split('\n').map(l => l.trim());
+                    if (lines.length < 2) return false;
+                    const choicePattern = (lang === 'ar') ? /^[أ-ي]\s*[.)-]/ : /^[A-Da-d]\s*[.)-]/;
+                    const choiceCount = lines.slice(1).filter(line => choicePattern.test(line)).length;
+                    return choiceCount >= 2;
+                };
+
+                const hasFillBlank = this.patterns.fillBlank.test(text);
+                const hasTrueFalse = this.patterns.trueFalse.test(text);
+                const hasEssay = this.patterns.essay.test(text);
+
+                if (hasChoices(this.language)) {
+                    return 'multiple_choice';
                 }
+                
+                if (hasTrueFalse) {
+                    return 'true_false';
+                }
+
+                if (hasFillBlank) {
+                    return 'fill_blank';
+                }
+
+                if (hasEssay) {
+                    return 'essay';
+                }
+
                 return 'unknown';
             }
+
 
             analyzeMultipleChoice(text) {
                 const lines = text.split('\n').filter(line => line.trim() !== '');
@@ -990,7 +1007,7 @@
             }
             
             updateStatistics() {
-                const counts = { multiple_choice: 0, true_false: 0, essay: 0, unknown: 0 };
+                const counts = { multiple_choice: 0, true_false: 0, essay: 0, unknown: 0, fill_blank: 0 };
                 let totalConfidence = 0;
                 this.questions.forEach(q => {
                     counts[q.type] = (counts[q.type] || 0) + 1;
@@ -1156,9 +1173,9 @@
                 document.querySelectorAll('.panel h3')[1].textContent = isAr ? '🔍 تحليل ومخرجات' : '🔍 Analysis & Output';
                 document.querySelectorAll('.panel h3')[2].textContent = isAr ? '👁️ معاينة الأسئلة' : '👁️ Questions Preview';
                 document.getElementById('questionInput').placeholder = isAr ?
-                    'أدخل الأسئلة هنا... مثال:\n1. ما هي عاصمة مصر؟\nأ) القاهرة*\nب) الإسكندرية\n\n2. الشمس تشرق من الغرب. (خطأ)'
+                    'أدخل الأسئلة هنا... مثال:\n1. ما هي عاصمة مصر؟\nأ) القاهرة*\nب) الإسكندرية\n**********\n2. الشمس تشرق من الغرب. (خطأ)\n**********\n3. أكمل: عاصمة السعودية هي _________'
                     :
-                    'Enter questions here... Example:\n1. What is the capital of Egypt?\nA) Cairo*\nB) Alexandria\n\n2. The sun rises from the west. (False)';
+                    'Enter questions here... Example:\n1. What is the capital of Egypt?\nA) Cairo*\nB) Alexandria\n**********\n2. The sun rises from the west. (False)\n**********\n3. Complete: The capital of KSA is _________';
                 document.querySelector('.btn-primary[onclick*="smartAnalyze"]').textContent = isAr ? '🤖 تحليل ذكي' : '🤖 Smart Analyze';
                 document.getElementById('aiEnhanceBtn').innerHTML = isAr ? '💎 تحسين بالـ AI' : '💎 Enhance with AI';
                 document.getElementById('customizeBtn').innerHTML = isAr ? '⚙️ تخصيص' : '⚙️ Customize';
