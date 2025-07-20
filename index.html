@@ -326,8 +326,6 @@
 ب) الإسكندرية
 
 2. الشمس تشرق من الغرب. (خطأ)
-
-3. أكمل: عاصمة السعودية هي __________.
 "></textarea>
                 </div>
                 <div class="api-key-section">
@@ -440,7 +438,7 @@
                 </select>
             </div>
             <button class="btn btn-primary" style="width:100%;" onclick="app.saveCustomization()">حفظ</button>
-        </div>
+      </div>
     </div>
 
     <!-- NEW: Handsontable CSV Modal -->
@@ -563,15 +561,18 @@
                 }
             }
 
+            // =================================================================
+            // ===== START: الدالة التي تم تصحيحها بالكامل =====
+            // =================================================================
             transformToAdvancedFormat(question, index, forceN = null) {
                 const typeMap = {
                     multiple_choice: 'mcq',
                     true_false: 'mcq',
-                    essay: 'essay',
+                    essay: 'frq_ai', // changed from 'essay' to 'frq_ai'
                     fill_blank: 'fill_blank',
-                    short_answer: 'short_answer',
+                    short_answer: 'frq_ai', // changed from 'short_answer' to 'frq_ai'
                     matching: 'matching',
-                    unknown: 'essay' // Fallback for unknown types
+                    unknown: 'frq_ai' // fallback for unknown types
                 };
 
                 const partN = (forceN !== null) ? forceN : (question.id || index + 1);
@@ -621,13 +622,13 @@
                     }
                     const choices = (this.language === 'ar') ? ['صح', 'خطأ'] : ['True', 'False'];
                     part.choices = choices.map((choice, i) => ({
-                        type: (i === correctAnswerIndex) ? 'key' : 'distractor',
-                        unit: null,
-                        index: i,
-                        values: [],
-                        last_order: false,
-                        fixed_order: i + 1,
-                        html_content: `<span>${this.escapeHtml(choice)}</span>`
+                         type: (i === correctAnswerIndex) ? 'key' : 'distractor',
+                         unit: null,
+                         index: i,
+                         values: [],
+                         last_order: false,
+                         fixed_order: i + 1,
+                         html_content: `<span>${this.escapeHtml(choice)}</span>`
                     }));
                 }
 
@@ -655,6 +656,9 @@
 
                 return advancedQuestion;
             }
+            // ===============================================================
+            // ===== END: الدالة التي تم تصحيحها بالكامل =====
+            // ===============================================================
             
             convertToJSON() {
                 if (this.questions.length === 0) {
@@ -872,48 +876,22 @@
                 return { id, originalText: block, type, confidence: Math.min(confidence, 1.0), ...structure };
             }
 
-            // =================================================================
-            // ===== START: الدالة التي تم تصحيحها =====
-            // =================================================================
             detectQuestionType(text) {
                 if (this.language === 'ar') {
-                    // Priority 1: True/False is very specific
                     if (this.patterns.trueFalse.test(text)) return 'true_false';
-                    
-                    // Priority 2: Multiple choice is a strong indicator. Check both ways.
                     const lines = text.split('\n');
                     if (lines.length > 1 && /^[أ-ي]\s*[.)-]/.test(lines[1].trim())) return 'multiple_choice';
                     if (this.patterns.multipleChoice.test(text)) return 'multiple_choice';
-
-                    // Priority 3: Fill blank (since it can appear in MCQ stems)
-                    if (this.patterns.fillBlank.test(text)) return 'fill_blank';
-
-                    // Priority 4: Essay keywords
                     if (this.patterns.essay.test(text)) return 'essay';
-
-                } else { // English logic
-                    // Priority 1: True/False
+                } else {
                     if (this.patterns.en_trueFalse.test(text)) return 'true_false';
-
-                    // Priority 2: Multiple choice
                     const lines = text.split('\n');
                     if (lines.length > 1 && /^[A-Da-d]\s*[.)-]/.test(lines[1].trim())) return 'multiple_choice';
                     if (this.patterns.en_multipleChoice.test(text)) return 'multiple_choice';
-
-                    // Priority 3: Fill blank
-                    if (this.patterns.fillBlank.test(text)) return 'fill_blank';
-
-                    // Priority 4: Essay
                     if (this.patterns.en_essay.test(text)) return 'essay';
                 }
-
-                // If nothing matches, it's unknown
                 return 'unknown';
             }
-            // ===============================================================
-            // ===== END: الدالة التي تم تصحيحها =====
-            // ===============================================================
-
 
             analyzeMultipleChoice(text) {
                 const lines = text.split('\n').filter(line => line.trim() !== '');
@@ -1000,7 +978,7 @@
             }
             
             updateStatistics() {
-                const counts = { multiple_choice: 0, true_false: 0, essay: 0, unknown: 0, fill_blank: 0 };
+                const counts = { multiple_choice: 0, true_false: 0, essay: 0, unknown: 0 };
                 let totalConfidence = 0;
                 this.questions.forEach(q => {
                     counts[q.type] = (counts[q.type] || 0) + 1;
@@ -1011,7 +989,7 @@
                 document.getElementById('totalQuestions').textContent = total;
                 document.getElementById('multipleChoice').textContent = counts.multiple_choice;
                 document.getElementById('trueFalse').textContent = counts.true_false;
-                document.getElementById('essay').textContent = counts.essay + counts.fill_blank; // Combine essay and fill_blank for stats
+                document.getElementById('essay').textContent = counts.essay;
                 document.getElementById('unknown').textContent = counts.unknown;
 
                 const avgConfidence = total > 0 ? (totalConfidence / total) : 0;
@@ -1041,11 +1019,11 @@
                     if (q._editing) {
                         let editContent = `
                             <div class="question-type-badge type-${q.type || 'unknown'}">${typeTranslations[q.type] || 'غير معروف'}</div>
-                            <textarea id="edit-question-${q.id}" style="width:100%;margin-bottom:10px;">${q.question}</textarea>
+                            <textarea id="edit-question-${q.id}" style="width:100%;margin-bottom:10px;">${this.escapeHtml(q.question)}</textarea>
                         `;
                         if (q.choices) {
                             editContent += q.choices.map((choice, i) => `
-                                <input id="edit-choice-${q.id}-${i}" type="text" value="${choice}" style="width:100%;margin-bottom:6px;" />
+                                <input id="edit-choice-${q.id}-${i}" type="text" value="${this.escapeHtml(choice)}" style="width:100%;margin-bottom:6px;" />
                             `).join('');
                         }
                         editContent += `
@@ -1085,20 +1063,16 @@
             
             escapeHtml(text) {
                 if (typeof text !== 'string') return text;
-                // العنصر الذي سيتم إدراجه بدل الشرطات
+                // أولاً: استبدال الشرطات الطويلة
                 const blankLineSpan = '<span data-node-type="blank-line" data-node-variation="space">&nbsp;</span>';
-                
-                // المفتاح هو تهريب حروف HTML الخاصة أولاً، ثم تنفيذ الاستبدالات الخاصة.
-                // هذا يمنع تحويل رموز '>' و '<' الموجودة في `blankLineSpan` إلى '&gt;' و '&lt;'.
+                text = text.replace(/([ـ_-]{3,})/g, blankLineSpan);
+                // ثانياً: استبدال الرموز الخاصة
                 return text
                     .replace(/&/g, "&amp;")
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
-                    // الآن، استبدل أي سلسلة من 3 شرطات/شرطات سفلية أو أكثر بالـ span.
-                    .replace(/([ـ_-]{3,})/g, blankLineSpan)
-                    // أخيرًا، قم بإلغاء تهريب وسوم <u> للسماح بالتسطير، كما في الكود الأصلي.
                     .replace(/&lt;u&gt;/g, "<u>")
-                    .replace(/&lt;\/u&gt;/g, "</u>");
+                    .replace(/&lt;\\/u&gt;/g, "</u>");
             }
 
             syntaxHighlight(json) {
@@ -1450,5 +1424,3 @@
     </script>
 </body>
 </html>
-
-
