@@ -1411,7 +1411,8 @@
         }
 
         const app = new AIQuestionConverter();
-        window.addEventListener('DOMContentLoaded', () => {
+        // FIX: Changed from DOMContentLoaded to load to ensure all external scripts are ready
+        window.addEventListener('load', () => {
             app.updateInterfaceLanguage();
             document.getElementById('categorySelect').value = app.customization.category;
             // NEW: Set initial value for lang dropdown
