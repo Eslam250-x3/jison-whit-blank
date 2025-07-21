@@ -527,6 +527,7 @@
                     const prompt = `
                         You are an expert system for structuring test questions from raw text into precise JSON format.
                         Task: Analyze the following raw text containing questions.
+                        If a choice contains an asterisk (*), it means this is the correct answer. Remove the asterisk from the choice text in the output, and set the answer index accordingly.
                         Your job is to correct any errors and return a single, valid JSON array containing all question objects, properly structured.
                         Each object must have "id", "type", "question", "choices" (if any), "answer" (the index of the correct choice, or the correct text), and a "confidence" score (0.0 to 1.0).
                         The "type" can be "multiple_choice", "true_false", "essay", "short_answer", "fill_blank", or "matching".
